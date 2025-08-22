@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Rahul — Moving Sale</title>
+  <meta name="description" content="Minimal personal marketplace: items, prices, and contact for pickup only." />
+  <style>
+    :root {
+      --bg:#ffffff; --surface:#ffffff; --text:#0f172a; --muted:#6b7280; --border:#e5e7eb;
+      --accent:#111827; --accent-2:#2563eb; --chip:#f5f7fb; --ring:rgba(37,99,235,.25);
+      --shadow:0 1px 2px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root{ --bg:#0b0c10; --surface:#0d0f14; --text:#e5e7eb; --muted:#9aa4b2; --border:#232733; --accent:#fafafa; --chip:#131622; --ring:rgba(59,130,246,.25); --shadow:0 1px 2px rgba(0,0,0,.25),0 12px 28px rgba(0,0,0,.35); }
+    }
+    *{box-sizing:border-box} html,body{margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);line-height:1.5;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Inter,Noto Sans,Helvetica Neue,Arial}
+    .container{max-width:1080px;margin:0 auto;padding:24px}
+    header{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin:8px 0 10px}
+    h1{font-size:clamp(22px,3.6vw,36px);font-weight:700;margin:0}
+    .sub{color:var(--muted);margin-top:4px}
+    .contact-row{display:flex;gap:10px;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid var(--border);text-decoration:none;color:inherit}
+    .pill.primary{background:var(--accent);color:#fff;border-color:transparent}
+    .toolbar{position:sticky;top:0;z-index:10;background:var(--bg);padding:12px 0 8px;border-bottom:1px solid var(--border);backdrop-filter:saturate(180%) blur(8px)}
+    .controls{display:grid;grid-template-columns:1fr 160px 160px;gap:10px}
+    @media (max-width:900px){.controls{grid-template-columns:1fr 1fr}.controls select:last-child{grid-column:1/-1}}
+    input[type="text"],select{width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--surface);color:var(--text);outline:none;transition:border .15s,box-shadow .15s}
+    input[type="text"]:focus,select:focus{border-color:var(--accent-2);box-shadow:0 0 0 4px var(--ring)}
+    .items{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));padding-top:16px}
+    .card{border:1px solid var(--border);border-radius:16px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow);transition:transform .15s}
+    .card:hover{transform:translateY(-1px)}
+    .thumb{aspect-ratio:4/3;width:100%;object-fit:cover;background:#e5e7eb;display:block}
+    .body{padding:12px 12px 14px}
+    .title{font-weight:650;font-size:16px}
+    .price{font-weight:750}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+    .chip{font-size:12px;padding:6px 10px;border-radius:999px;background:var(--chip);border:1px solid var(--border);color:var(--muted)}
+    .desc{color:var(--muted);font-size:13px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    .btns{display:flex;gap:8px}
+    .btn{flex:1;text-align:center;padding:10px 12px;border-radius:12px;border:1px solid var(--border);text-decoration:none;color:inherit}
+    .btn.primary{background:var(--accent-2);color:#fff;border-color:transparent}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;color:var(--muted);font-size:12px}
+    .share{background:none;border:none;color:var(--muted);cursor:pointer}
+    .badge{position:absolute;top:10px;left:10px;background:#111827cc;color:#f9fafb;padding:6px 10px;border-radius:10px;font-size:12px;border:1px solid #374151}
+    .sold{filter:grayscale(.85) brightness(.9)}
+    footer{margin:26px 0 8px;color:var(--muted);font-size:12px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Rahul’s Moving Sale</h1>
+        <div class="sub">Minimal, clean list of items for pickup only. No delivery, no checkout.</div>
+      </div>
+      <nav class="contact-row" aria-label="Quick contact">
+        <a id="waTop" class="pill primary" target="_blank" href="#">WhatsApp</a>
+        <a id="callTop" class="pill" href="#">Call</a>
+        <a id="mailTop" class="pill" href="#">Email</a>
+      </nav>
+    </header>
+
+    <section class="toolbar" role="region" aria-label="Filters">
+      <div class="controls">
+        <input id="search" type="text" placeholder="Search items (e.g., chair, iPhone, table)" />
+        <select id="category"></select>
+        <select id="sort">
+          <option value="recent">Newest first</option>
+          <option value="price_asc">Price: Low → High</option>
+          <option value="price_desc">Price: High → Low</option>
+        </select>
+      </div>
+    </section>
+
+    <main>
+      <div id="items" class="items" aria-live="polite"></div>
+    </main>
+
+    <footer>© <span id="year"></span> Rahul Agrawal · Pickup: <span id="pickupArea"></span></footer>
+  </div>
+
+  <script>
+    // -------- CONFIG --------
+    const CONTACT = {
+      name: "Rahul Agrawal",
+      phone: "+919560378104",
+      whatsapp: "+919560378104",
+      email: "rahulag2602@gmail.com",
+      pickupArea: "Indiranagar, Bengaluru"
+    };
+
+    // Add / edit your items here
+    const ITEMS = [
+      {
+        id: "chair-1",
+        title: "Ergonomic Office Chair",
+        price: 4500,
+        condition: "Very Good",
+        category: "Furniture",
+        description: "Adjustable lumbar, breathable mesh, tilt & height adjust.",
+        image: "",
+        location: "Indiranagar",
+        postedAt: "2025-08-20"
+      },
+      {
+        id: "phone-1",
+        title: "iPhone 12, 128GB (Blue)",
+        price: 26000,
+        condition: "Good",
+        category: "Electronics",
+        description: "Battery health 86%, original box & cable included.",
+        image: "",
+        location: "Indiranagar",
+        postedAt: "2025-08-21"
+      },
+      {
+        id: "table-1",
+        title: "Solid Wood Dining Table (4-seater)",
+        price: 9000,
+        condition: "Excellent",
+        category: "Furniture",
+        description: "Sheesham wood, minor scratch on the edge.",
+        image: "",
+        location: "Koramangala",
+        postedAt: "2025-08-19",
+        sold: true
+      }
+    ];
+    // ------------------------
+
+    // Header/footers contacts
+    document.getElementById("waTop").href = "https://wa.me/" + CONTACT.whatsapp.replace(/[^0-9]/g,"");
+    document.getElementById("callTop").href = "tel:" + CONTACT.phone;
+    document.getElementById("mailTop").href = "mailto:" + CONTACT.email;
+    document.getElementById("pickupArea").textContent = CONTACT.pickupArea;
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    const fmt = new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:0 });
+
+    // Build category list
+    const catSel = document.getElementById("category");
+    const cats = ["All", ...Array.from(new Set(ITEMS.map(i => i.category))).sort()];
+    catSel.innerHTML = cats.map(c => `<option value="${c}">Category: ${c}</option>`).join("");
+
+    const search = document.getElementById("search");
+    const sortSel = document.getElementById("sort");
+    const itemsEl = document.getElementById("items");
+
+    function placeholderFromTitle(title){
+      const parts = title.trim().split(" ");
+      const initials = ((parts[0]||"")[0]||"") + ((parts[1]||"")[0]||"");
+      const svg = encodeURIComponent(`<?xml version='1.0' encoding='UTF-8'?>
+        <svg xmlns='http://www.w3.org/2000/svg' width='800' height='600'>
+          <defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0%' stop-color='#e5e7eb'/><stop offset='100%' stop-color='#cbd5e1'/></linearGradient></defs>
+          <rect width='100%' height='100%' fill='url(#g)'/>
+          <text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-family='Inter, Arial' font-size='120' fill='#111827' opacity='0.9'>${initials.toUpperCase()}</text>
+        </svg>`);
+      return "data:image/svg+xml;charset=UTF-8," + svg;
+    }
+
+    function card(item){
+      const img = item.image && item.image.trim() ? item.image : placeholderFromTitle(item.title);
+      const sold = !!item.sold;
+      return `
+        <article class="card ${sold ? "sold":""}" data-id="${item.id}">
+          ${sold ? '<div class="badge">SOLD</div>' : ''}
+          <img class="thumb" alt="${item.title}" loading="lazy" src="${img}">
+          <div class="body">
+            <div class="row" style="justify-content:space-between;align-items:start">
+              <div class="title">${item.title}</div>
+              <div class="price">${fmt.format(item.price)}</div>
+            </div>
+            <div class="row" style="margin:6px 0 8px 0">
+              <span class="chip" title="Condition">${item.condition}</span>
+              <span class="chip" title="Category">${item.category}</span>
+              ${item.location ? `<span class="chip" title="Pickup area">📍 ${item.location}</span>` : ""}
+            </div>
+            <div class="desc">${item.description || ""}</div>
+            <div class="btns" style="margin-top:10px">
+              <a class="btn primary" target="_blank" href="https://wa.me/${CONTACT.whatsapp.replace(/[^0-9]/g,'')}?text=${encodeURIComponent('Hi ' + CONTACT.name + ', I am interested in: ' + item.title + ' — ' + fmt.format(item.price))}">WhatsApp</a>
+              <a class="btn" href="tel:${CONTACT.phone}">Call</a>
+              <a class="btn" href="mailto:${CONTACT.email}?subject=${encodeURIComponent('Interested: ' + item.title)}&body=Hi%20${encodeURIComponent(CONTACT.name)}%2C%0A%0AI%20am%20interested%20in%20your%20item%3A%20${encodeURIComponent(item.title)}%20(${encodeURIComponent(fmt.format(item.price))}).%20Is%20it%20still%20available%3F">Email</a>
+            </div>
+            <div class="meta">
+              <small>Posted ${new Date(item.postedAt || Date.now()).toLocaleDateString()}</small>
+              <button class="share" onclick="shareItem('${item.id}')">Share</button>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    function render(list){ itemsEl.innerHTML = list.map(card).join(""); }
+
+    function applyFilters(){
+      const q = search.value.trim().toLowerCase();
+      const cat = catSel.value;
+      const sort = sortSel.value;
+      let list = ITEMS.filter(i => {
+        const inCat = cat === "All" || i.category === cat;
+        const inText = !q || (i.title + " " + (i.description||"") + " " + i.category + " " + (i.location||"")).toLowerCase().includes(q);
+        return inCat && inText;
+      });
+      list.sort((a,b)=>{
+        if (sort === "price_asc") return a.price - b.price;
+        if (sort === "price_desc") return b.price - a.price;
+        return new Date(b.postedAt||0) - new Date(a.postedAt||0);
+      });
+      render(list);
+    }
+
+    function shareItem(id){
+      const item = ITEMS.find(i=>i.id===id);
+      if(!item) return;
+      const url = location.href.split("#")[0] + "#" + encodeURIComponent(id);
+      const text = item.title + " — " + fmt.format(item.price) + " (Pickup: " + (item.location||CONTACT.pickupArea) + ")";
+      if (navigator.share) { navigator.share({ title: item.title, text, url }).catch(()=>{}); }
+      else { navigator.clipboard.writeText(text + "\n" + url).then(()=> alert("Link copied")).catch(()=>{}); }
+    }
+
+    search.addEventListener("input", applyFilters);
+    catSel.addEventListener("change", applyFilters);
+    sortSel.addEventListener("change", applyFilters);
+
+    applyFilters();
+
+    if (location.hash){
+      const id = decodeURIComponent(location.hash.slice(1));
+      setTimeout(()=>{
+        const el = document.querySelector('[data-id="' + CSS.escape(id) + '"]');
+        if (el) { el.scrollIntoView({behavior:"smooth", block:"center"}); }
+      }, 200);
+    }
+  </script>
+</body>
+</html>
